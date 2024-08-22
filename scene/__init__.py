@@ -45,6 +45,9 @@ class Scene:
         elif os.path.exists(os.path.join(args.source_path, "transforms_train.json")):
             print("Found transforms_train.json file, assuming Blender data set!")
             scene_info = sceneLoadTypeCallbacks["Blender"](args.source_path, args.white_background, args.eval)
+        elif args.source_path.split('.')[-1] == 'pt':
+            print("Found EVdataset file file!")
+            scene_info = sceneLoadTypeCallbacks["EV"](args.source_path, args.white_background, args.eval)
         else:
             assert False, "Could not recognize scene type!"
 
@@ -83,7 +86,7 @@ class Scene:
                                                            "point_cloud.ply"))
         else:
             self.gaussians.create_from_pcd(scene_info.point_cloud, self.cameras_extent)
-            self.gaussians.init_RT_seq(self.train_cameras)
+            self.gaussians.init_RT_seq(self.train_cameras, self.test_cameras)
 
     def save(self, iteration):
         point_cloud_path = os.path.join(self.model_path, "point_cloud/iteration_{}".format(iteration))

@@ -161,14 +161,19 @@ class GaussianModel:
 
         return E_rel
 
-    def init_RT_seq(self, cam_list):
-        poses =[]
+    def init_RT_seq(self, cam_list, test_cam_list):
+        poses, test_poses = [], []
         for cam in cam_list[1.0]:
             p = get_tensor_from_camera(cam.world_view_transform.transpose(0, 1)) # R T -> quat t
             poses.append(p)
         poses = torch.stack(poses)
         self.P = poses.cuda().requires_grad_(True)
 
+        for cam in test_cam_list[1.0]:
+            p = get_tensor_from_camera(cam.world_view_transform.transpose(0, 1)) # R T -> quat t
+            test_poses.append(p)
+        test_poses = torch.stack(test_poses)
+        self.test_P = test_poses.cuda()
 
     def get_RT(self, idx):
         pose = self.P[idx]
@@ -367,6 +372,7 @@ class GaussianModel:
         optimizable_tensors = {}
         for group in self.optimizer.param_groups:
             stored_state = self.optimizer.state.get(group['params'][0], None)
+
             if stored_state is not None:
                 stored_state["exp_avg"] = stored_state["exp_avg"][mask]
                 stored_state["exp_avg_sq"] = stored_state["exp_avg_sq"][mask]
@@ -375,6 +381,9 @@ class GaussianModel:
                 group["params"][0] = nn.Parameter((group["params"][0][mask].requires_grad_(True)))
                 self.optimizer.state[group['params'][0]] = stored_state
 
+                optimizable_tensors[group["name"]] = group["params"][0]
+            elif group["name"] == "pose":
+                group["params"][0] = nn.Parameter(group["params"][0].requires_grad_(True))
                 optimizable_tensors[group["name"]] = group["params"][0]
             else:
                 group["params"][0] = nn.Parameter(group["params"][0][mask].requires_grad_(True))
